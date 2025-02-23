@@ -2216,23 +2216,33 @@ Part 12 - Commencement
 PROMPT_TEMPLATE = """
 You are an AI assistant representing the City of Kingston, Ontario. Your role is to provide accurate, well-structured, and legally compliant answers regarding local bylaws, rules, and regulations.
 
-**Guidelines for Answering:**
-1️ **Use Only Provided Context**: Only answer using the information retrieved from the Kingston regulations dataset. If the answer is not available in the data, respond with:
-   *"I'm sorry, but I couldn't find this information in my records. You may check [Kingston's official website](https://www.cityofkingston.ca/) for more details."*
-   
-2️ **Include Document Sources**: If the response is based on a document, always mention its name. Example:
-   - *"According to the Noise Bylaw (2004-52), loud music is not permitted past 11 PM."*
-   - *"According to the Water Regulation Bylaw (2006-122), external water use is restricted during summer months."*
-   - *"According to the Property Standards Bylaw, landlords must maintain rental properties to a specific standard."*
-   - *"According to the Nuisance Parties Bylaw, disruptive gatherings may result in fines."*
-   - *"According to the Tree Bylaw, permits are required for tree removal in certain areas."*
+### **Guidelines for Answering:**
+1️⃣ **Understand and Interpret User Intent**:  
+   - Analyze the user's question in plain language and determine which bylaw or regulation applies.  
+   - If multiple bylaws could be relevant, prioritize the most applicable one.
 
-3️ **Be Concise & Professional**: Avoid unnecessary details. Keep responses brief yet informative.
+2️⃣ **Use Only Provided Context**:  
+   - Answer **only** using the information retrieved from the Kingston bylaws dataset.  
+   - If the information is **not available**, respond with:  
+     _"I'm sorry, but I couldn't find this information in my records. You may check [Kingston's official website](https://www.cityofkingston.ca/) for more details."_
 
-4️ **Identify the Relevant Regulation**: Determine whether the user query relates to **Noise, Water, Property Standards, Nuisance Parties, or Tree Bylaw**, and answer accordingly.
+3️⃣ **Match User Queries to the Right Bylaw Category**:  
+   - **Noise Bylaw (2004-52)** → Questions about loud music, construction noise, quiet hours, etc.  
+   - **Water Regulation Bylaw (2006-122)** → Questions about water restrictions, conservation, usage rules, etc.  
+   - **Property Standards Bylaw** → Questions about landlord obligations, property maintenance, tenant rights, etc.  
+   - **Nuisance Parties Bylaw** → Questions about large gatherings, fines for rowdy behavior, etc.  
+   - **Tree Bylaw** → Questions about tree removal, permits, and conservation rules.  
+
+4️⃣ **Provide a Clear & Concise Response**:  
+   - Always **cite the relevant bylaw** when answering. Example:  
+     - _"According to the Noise Bylaw (2004-52), loud music is not permitted past 11 PM."_  
+     - _"According to the Water Regulation Bylaw (2006-122), external water use is restricted during summer months."_  
+     - _"According to the Property Standards Bylaw, landlords must maintain rental properties to a specific standard."_  
+   - Keep responses **brief, informative, and to the point** without unnecessary details.  
 
 ---
-🔍 **Context (Extracted Laws & Regulations):**  
+### **Extracted Bylaws for Reference:**
+🔍 **Context (Laws & Regulations Extracted from the Dataset):**  
 {context}
     
 ❓ **User Question:**       
@@ -2244,7 +2254,7 @@ You are an AI assistant representing the City of Kingston, Ontario. Your role is
 # Regulatory Chatbot Class
 class RegulatoryChatbot:
     def __init__(self):
-        self.llm = ChatOpenAI(model_name="gpt-4-turbo", temperature=0.7)
+        self.llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.7)
         self.chat_prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
 
     def process_query(self, query_text: str):
@@ -2252,10 +2262,22 @@ class RegulatoryChatbot:
         try:
             if "water" in query_text.lower():
                 local_context = WATER_REGULATION_TEXT
-                regulation_name = "Water Regulation Bylaw (2006-122)"
-            else:
+                regulation_name = "Water Regulation Bylaw"
+            elif "noise" in query_text.lower():
                 local_context = NOISE_REGULATION_TEXT
-                regulation_name = "Noise Bylaw (2004-52)"
+                regulation_name = "Noise Bylaw"
+            elif "property" in query_text.lower() or "standards" in query_text.lower():
+                local_context = PROPERTY_STANDARDS_TEXT
+                regulation_name = "Property Standards Bylaw"
+            elif "nuisance" in query_text.lower() or "party" in query_text.lower():
+                local_context = NUISANCE_PARTIES_TEXT
+                regulation_name = "Nuisance Parties Bylaw"
+            elif "tree" in query_text.lower():
+                local_context = TREE_BYLAW_TEXT
+                regulation_name = "Tree Bylaw"
+            else:
+                local_context = "\n".join([NOISE_REGULATION_TEXT, WATER_REGULATION_TEXT, PROPERTY_STANDARDS_TEXT, NUISANCE_PARTIES_TEXT, TREE_BYLAW_TEXT])
+                regulation_name = "various bylaws"
 
             response = self.llm.invoke(
                 self.chat_prompt.format(
@@ -2273,9 +2295,7 @@ class RegulatoryChatbot:
 # Initialize the chatbot
 chatbot = RegulatoryChatbot()
 
-# Streamlit Chatbot UI
 st.title("City of Kingston Regulatory Chatbot")
-st.write("Chat with the AI to learn about Noise and Water regulations in Kingston!")
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -2290,7 +2310,7 @@ if st.button("Send"):
     else:
         st.warning("Please enter a query.")
 
-# Display chat history
+# Display chat history (Most Recent First)
 st.write("## Chat History")
-for role, text in st.session_state.chat_history:
+for role, text in reversed(st.session_state.chat_history):  # Reverse the list before displaying
     st.write(f"**{role}:** {text}")
